@@ -1,5 +1,6 @@
 const inquirer = require('inquirer')
 const ethers = require('ethers')
+require('dotenv').config()
 
 //ADRESSES
 const addresses = {
@@ -19,11 +20,8 @@ const gas = {
 }
 
 //ACCOUNT
-const mnemonic =
-  'bike oven gather narrow stone tissue cable forget drastic evolve fancy asset'
-const provider = new ethers.providers.WebSocketProvider(
-  'wss://speedy-nodes-nyc.moralis.io/bc8cfa0017163ce51d7052a6/eth/mainnet/ws'
-)
+const mnemonic = process.env.SEED_PHRASE
+const provider = new ethers.providers.WebSocketProvider(process.env.SERVER_NODE)
 const wallet = ethers.Wallet.fromMnemonic(mnemonic)
 const account = wallet.connect(provider)
 
