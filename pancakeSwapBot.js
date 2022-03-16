@@ -1,19 +1,20 @@
 const inquirer = require('inquirer')
 const ethers = require('ethers')
 require('dotenv').config()
+const prompt = require('prompt-sync')({ sigint: true })
 
 //ADRESSES
 const addresses = {
   router: '0x10ed43c718714eb63d5aa57b78b54704e256024e',
-  // BNB: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
-  // STABLE: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
-  // TOKEN_TO_SNIPE: '0x12BB890508c125661E03b09EC06E404bc9289040',
+  BNB: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+  STABLE: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+  TOKEN_TO_SNIPE: '0x28bB9d8E1Cc0BbC41a03e5105F802036305A6908',
   PAIR: '0xa0feB3c81A36E885B6608DF7f0ff69dB97491b58',
-  WALLET_ADDRESS: '0x037eEd581e2e634D8472176D22c58C77F4D1cda2',
+  WALLET_ADDRESS: process.env.WALLET_ADRESS,
 }
 
 //GAS
-const gasPrice = ethers.utils.parseUnits('40', 'gwei')
+const gasPrice = ethers.utils.parseUnits('20', 'gwei')
 const gas = {
   gasPrice: gasPrice,
   gasLimit: 200000,
@@ -61,9 +62,7 @@ const getBalanceSellingOfToken = async (tokenContract) => {
 }
 
 const getBalanceOfBNB = async () => {
-  const balance = await provider.getBalance(
-    '0x037eEd581e2e634D8472176D22c58C77F4D1cda2'
-  )
+  const balance = await provider.getBalance(process.env.WALLET_ADRESS)
   const balanceFormatted = ethers.utils.formatEther(balance)
   console.log(balanceFormatted)
 }
@@ -84,8 +83,6 @@ const getReserve = async () => {
 }
 
 const buyTokenWithBNB = async () => {
-  let success = true
-
   try {
     const tx = await routerContract.swapExactETHForTokens(
       0,
@@ -101,7 +98,6 @@ const buyTokenWithBNB = async () => {
     console.log(`Swapping BNB for tokens...`)
     const receipt = await tx.wait()
     console.log(`Transaction hash: ${receipt.transactionHash}`)
-    success = false
   } catch (error) {
     console.log('ERROR ', error)
   }
@@ -201,6 +197,109 @@ const sellToken = async () => {
   console.log(`Transaction hash: ${receipt.transactionHash}`)
 }
 
+const automaticBuyAndSell = async () => {
+  const amountOfBNB = '0.001'
+  const tokenToSnipe = prompt('Token adress to snipe: ')
+  console.log('Swap token: ', tokenToSnipe)
+
+  const tx = await routerContract.swapExactETHForTokens(
+    0,
+    [addresses.BNB, tokenToSnipe],
+    addresses.WALLET_ADDRESS,
+    Math.floor(Date.now() / 1000) + 60 * 10,
+    {
+      ...gas,
+      value: ethers.utils.parseUnits(amountOfBNB, 18),
+    }
+  )
+
+  console.log(`Swapping BNB for tokens...`)
+  const receipt = await tx.wait()
+  console.log(`Transaction hash: ${receipt.transactionHash}`)
+
+  const sellToken = async () => {
+    const sellingTokenContract = new ethers.Contract(
+      tokenToSnipe,
+      [
+        'function approve(address spender, uint256 amount) external returns (bool)',
+      ],
+      account
+    )
+
+    const balanceOfTokenToSell = await getBalanceSellingOfToken(tokenToSnipe)
+
+    console.log('Balance of token to sell ', balanceOfTokenToSell)
+
+    const SELLTOKENAmountIn = ethers.utils.parseUnits(
+      `${balanceOfTokenToSell}`,
+      18
+    )
+    let amounts = await routerContract.getAmountsOut(SELLTOKENAmountIn, [
+      tokenToSnipe,
+      addresses.BNB,
+    ])
+    const BUYTOKENamountOutMin = amounts[1].sub(amounts[1].div(10))
+
+    console.log(
+      'Amount of buying token: ',
+      ethers.utils.formatEther(SELLTOKENAmountIn)
+    )
+    console.log(
+      'Amount min of selling token: ',
+      ethers.utils.formatEther(BUYTOKENamountOutMin)
+    )
+
+    const amountOfBuyingToken = parseFloat(amountOfBNB)
+    const amountOutOfToken = parseFloat(ethers.utils.formatEther(amounts[1]))
+    console.log('Diff token :', amountOutOfToken, amountOfBuyingToken)
+    if (amountOutOfToken > 1.2 * amountOfBuyingToken) {
+      console.log('Je vends x2 :', 1.2 * amountOfBuyingToken)
+      const approveTx = await sellingTokenContract.approve(
+        addresses.router,
+        SELLTOKENAmountIn
+      )
+      await approveTx.wait()
+
+      console.log(`Swapping tokens...`)
+      const swapTx = await routerContract.swapExactTokensForTokens(
+        SELLTOKENAmountIn,
+        BUYTOKENamountOutMin,
+        [tokenToSnipe, addresses.BNB],
+        addresses.WALLET_ADDRESS,
+        Date.now() + 1000 * 60 * 10,
+        { ...gas }
+      )
+
+      const receipt = await swapTx.wait()
+      console.log(`Transaction hash: ${receipt.transactionHash}`)
+
+      clearInterval(timer)
+    } else if (amountOutOfToken < 0.2 * amountOfBuyingToken) {
+      console.log('Je vends /2 :')
+
+      // const approveTx = await sellingTokenContract.approve(
+      //   addresses.router,
+      //   SELLTOKENAmountIn
+      // )
+      // await approveTx.wait()
+      // console.log(`Swapping tokens...`)
+      // const swapTx = await routerContract.swapExactTokensForTokens(
+      //   SELLTOKENAmountIn,
+      //   BUYTOKENamountOutMin,
+      //   [tokenToSnipe, addresses.BNB],
+      //   addresses.WALLET_ADDRESS,
+      //   Date.now() + 1000 * 60 * 10,
+      //   { ...gas }
+      // )
+      // const receipt = await swapTx.wait()
+      // console.log(`Transaction hash: ${receipt.transactionHash}`)
+      // clearInterval(timer)
+    }
+  }
+
+  const timer = setInterval(sellToken, 5000)
+}
+
 inquirer
   .prompt([
     {
@@ -211,6 +310,7 @@ inquirer
         'Get balance of BNB',
         'Get balance of STABLE',
         'Get reserve',
+        'Automatic Buy',
         'Buy token with BNB',
         'Buy token',
         'Sell token',
@@ -228,6 +328,9 @@ inquirer
         break
       case 'Get reserve':
         getReserve()
+        break
+      case 'Automatic Buy':
+        automaticBuyAndSell()
         break
       case 'Buy token with BNB':
         buyTokenWithBNB()
