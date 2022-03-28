@@ -89,7 +89,7 @@ const buyBNBwithTokens = async () => {
       if (pair !== "0x0000000000000000000000000000000000000000") {
         console.log("Pair found ", pair);
         clearInterval(timer);
-        console.log("Clearing interval");
+        console.log("Cleared interval");
 
         const balanceOfTokenToSell = await getBalanceSellingOfToken(
           addresses.TOKEN_TO_SNIPE
@@ -97,15 +97,18 @@ const buyBNBwithTokens = async () => {
 
         console.log("Balance of token to sell ", balanceOfTokenToSell);
 
-        const SELLTOKENAmountIn = ethers.utils.parseUnits("60265854", 18);
+        const SELLTOKENAmountIn = ethers.utils.parseUnits(
+          `${balanceOfTokenToSell}`,
+          18
+        );
 
-        console.log("SELL TOKEN AMOUNT IN", SELLTOKENAmountIn);
-
+        console.log("Approving token...");
         const approveTx = await sellingTokenContract.approve(
           addresses.router,
           SELLTOKENAmountIn
         );
         await approveTx.wait();
+        console.log("Token approved");
 
         const tx = await routerContract.swapExactTokensForETH(
           SELLTOKENAmountIn,
@@ -118,14 +121,14 @@ const buyBNBwithTokens = async () => {
           }
         );
 
-        console.log(`Swapping BNB for tokens...`);
+        console.log(`Swapping Tokens for BNB...`);
         const receipt = await tx.wait();
         console.log(`Transaction hash: ${receipt.transactionHash}`);
       } else {
         console.log("Pair not found");
       }
     } catch (error) {
-      console.log("There is an error ", error);
+      console.log("An error occured ", error);
     }
   };
 
