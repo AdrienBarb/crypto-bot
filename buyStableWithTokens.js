@@ -9,7 +9,7 @@ const addresses = {
   router: "0x10ed43c718714eb63d5aa57b78b54704e256024e",
   BNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
   STABLE: "0xe9e7cea3dedca5984780bafc599bd69add087d56",
-  TOKEN_TO_SNIPE: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+  TOKEN_TO_SNIPE: "0x5B6bf0c7f989dE824677cFBD507D9635965e9cD3",
   PAIR: "0xa0feB3c81A36E885B6608DF7f0ff69dB97491b58",
   FACTORY: "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
   WALLET_ADDRESS: process.env.WALLET_ADRESS,
@@ -116,7 +116,7 @@ const sellToken = async () => {
   console.log(`Swapping tokens...`);
   const swapTx = await routerContract.swapExactTokensForTokens(
     SELLTOKENAmountIn,
-    BUYTOKENamountOutMin,
+    0,
     [addresses.TOKEN_TO_SNIPE, addresses.STABLE],
     addresses.WALLET_ADDRESS,
     Date.now() + 1000 * 60 * 10,
