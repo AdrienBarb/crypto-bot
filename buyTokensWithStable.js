@@ -6,8 +6,9 @@ const prompt = require("prompt-sync")({ sigint: true });
 //ADRESSES
 const addresses = {
   router: "0x10ed43c718714eb63d5aa57b78b54704e256024e",
-  BNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
-  TOKEN_TO_SNIPE: "0xb4404DaB7C0eC48b428Cf37DeC7fb628bcC41B36",
+  STABLE: "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+  TOKEN_TO_SNIPE: "0x12BB890508c125661E03b09EC06E404bc9289040",
+  PAIR: "0xa0feB3c81A36E885B6608DF7f0ff69dB97491b58",
   FACTORY: "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
   WALLET_ADDRESS: process.env.WALLET_ADRESS,
 };
@@ -47,37 +48,94 @@ const factoryContract = new ethers.Contract(
   account
 );
 
-const getBalanceOfBNB = async () => {
-  const balance = await provider.getBalance(process.env.WALLET_ADRESS);
-  const balanceFormatted = ethers.utils.formatEther(balance);
-  console.log(balanceFormatted);
+const getPair = async () => {
+  try {
+    const pair = await factoryContract.getPair(
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "0x3b76374Cc2DfE28Cc373DcA6d5024791B2586335"
+    );
+    console.log(pair);
+  } catch (error) {
+    console.log("ERRRORRRRRR");
+  }
 };
 
-const buyTokenWithBNB = async () => {
+const getBalanceSellingOfToken = async (tokenContract) => {
+  const ABI = [
+    {
+      constant: true,
+      inputs: [{ name: "_owner", type: "address" }],
+      name: "balanceOf",
+      outputs: [{ name: "balance", type: "uint256" }],
+      type: "function",
+    },
+  ];
+  const newContract = new ethers.Contract(tokenContract, ABI, provider);
+  const balance = await newContract.balanceOf(addresses.WALLET_ADDRESS);
+  const balanceFormatted = ethers.utils.formatEther(balance);
+  console.log(balanceFormatted);
+  return balanceFormatted;
+};
+
+const buyToken = async () => {
   const automaticBuy = async () => {
     try {
       const pair = await factoryContract.getPair(
         addresses.TOKEN_TO_SNIPE,
-        addresses.BNB
+        addresses.STABLE
       );
 
       if (pair !== "0x0000000000000000000000000000000000000000") {
         console.log("Pair found ", pair);
+
         clearInterval(timer);
         console.log("Clearing interval");
-        const tx = await routerContract.swapExactETHForTokens(
-          0,
-          [addresses.BNB, addresses.TOKEN_TO_SNIPE],
-          addresses.WALLET_ADDRESS,
-          Math.floor(Date.now() / 1000) + 60 * 10,
-          {
-            ...gas,
-            value: ethers.utils.parseUnits("0.001", 18),
-          }
+
+        const sellingTokenContract = new ethers.Contract(
+          addresses.STABLE,
+          [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+          ],
+          account
         );
 
-        console.log(`Swapping BNB for tokens...`);
-        const receipt = await tx.wait();
+        const balanceOfTokenToSell = await getBalanceSellingOfToken(
+          addresses.STABLE
+        );
+
+        console.log("Balance of token to sell ", balanceOfTokenToSell);
+
+        const SELLTOKENAmountIn = ethers.utils.parseUnits(
+          `${balanceOfTokenToSell}`,
+          18
+        );
+        let amounts = await routerContract.getAmountsOut(SELLTOKENAmountIn, [
+          addresses.STABLE,
+          addresses.TOKEN_TO_SNIPE,
+        ]);
+        const BUYTOKENamountOutMin = amounts[1].sub(amounts[1].div(10));
+
+        console.log(ethers.utils.formatEther(SELLTOKENAmountIn));
+        console.log(ethers.utils.formatEther(BUYTOKENamountOutMin));
+
+        const approveTx = await sellingTokenContract.approve(
+          addresses.router,
+          SELLTOKENAmountIn
+        );
+        await approveTx.wait();
+
+        console.log(`Swapping tokens...`);
+        const swapTx = await routerContract.swapExactTokensForTokens(
+          SELLTOKENAmountIn,
+          BUYTOKENamountOutMin,
+          [addresses.STABLE, addresses.TOKEN_TO_SNIPE],
+          addresses.WALLET_ADDRESS,
+          Date.now() + 1000 * 60 * 10,
+          { ...gas }
+        );
+
+        console.log(`Mining transaction...`);
+        const receipt = await swapTx.wait();
         console.log(`Transaction hash: ${receipt.transactionHash}`);
       } else {
         console.log("Pair not found");
@@ -96,18 +154,16 @@ inquirer
       type: "rawlist",
       name: "cryptoCommand",
       message: "What do you want?",
-      choices: ["Get balance of BNB", "Buy token with BNB"],
+      choices: ["Buy token"],
     },
   ])
   .then((answers) => {
     console.info("Answer:", answers.cryptoCommand);
     switch (answers.cryptoCommand) {
-      case "Get balance of BNB":
-        getBalanceOfBNB();
+      case "Buy token":
+        buyToken();
         break;
-      case "Buy token with BNB":
-        buyTokenWithBNB();
-        break;
+
       default:
         break;
     }
