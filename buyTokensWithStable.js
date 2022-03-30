@@ -7,14 +7,14 @@ const prompt = require("prompt-sync")({ sigint: true });
 const addresses = {
   router: "0x10ed43c718714eb63d5aa57b78b54704e256024e",
   STABLE: "0xe9e7cea3dedca5984780bafc599bd69add087d56",
-  TOKEN_TO_SNIPE: "0x5B6bf0c7f989dE824677cFBD507D9635965e9cD3",
+  TOKEN_TO_SNIPE: "0x3A2927E68749Dd6ad0A568d7c05b587863C0bC10",
   PAIR: "0xa0feB3c81A36E885B6608DF7f0ff69dB97491b58",
   FACTORY: "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
   WALLET_ADDRESS: process.env.WALLET_ADRESS,
 };
 
 //GAS
-const gasPrice = ethers.utils.parseUnits("5", "gwei");
+const gasPrice = ethers.utils.parseUnits("30", "gwei");
 const gas = {
   gasPrice: gasPrice,
   gasLimit: 600000,
@@ -93,10 +93,11 @@ const buyToken = async () => {
 
         console.log("Balance of token to sell ", balanceOfTokenToSell);
 
-        const SELLTOKENAmountIn = ethers.utils.parseUnits(
-          `${balanceOfTokenToSell}`,
-          18
-        );
+        // const SELLTOKENAmountIn = ethers.utils.parseUnits(
+        //   `${balanceOfTokenToSell}`,
+        //   18
+        // );
+        const SELLTOKENAmountIn = ethers.utils.parseUnits(`10`, 18);
         let amounts = await routerContract.getAmountsOut(SELLTOKENAmountIn, [
           addresses.STABLE,
           addresses.TOKEN_TO_SNIPE,

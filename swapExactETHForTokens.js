@@ -7,13 +7,13 @@ const prompt = require("prompt-sync")({ sigint: true });
 const addresses = {
   router: "0x10ed43c718714eb63d5aa57b78b54704e256024e",
   BNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
-  TOKEN_TO_SNIPE: "0xb4404DaB7C0eC48b428Cf37DeC7fb628bcC41B36",
+  TOKEN_TO_SNIPE: "0x3A2927E68749Dd6ad0A568d7c05b587863C0bC10",
   FACTORY: "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
   WALLET_ADDRESS: process.env.WALLET_ADRESS,
 };
 
 //GAS
-const gasPrice = ethers.utils.parseUnits("5", "gwei");
+const gasPrice = ethers.utils.parseUnits("30", "gwei");
 const gas = {
   gasPrice: gasPrice,
   gasLimit: 600000,
@@ -72,7 +72,7 @@ const buyTokenWithBNB = async () => {
           Math.floor(Date.now() / 1000) + 60 * 10,
           {
             ...gas,
-            value: ethers.utils.parseUnits("0.001", 18),
+            value: ethers.utils.parseUnits("0.05", 18),
           }
         );
 
@@ -87,7 +87,7 @@ const buyTokenWithBNB = async () => {
     }
   };
 
-  const timer = setInterval(automaticBuy, 2000);
+  const timer = setInterval(automaticBuy, 1000);
 };
 
 inquirer
